@@ -726,18 +726,29 @@ class Client {
 
     const VERSION = 2;
 
-    await this._sendFieldsetRateLimited([
+    const requestId = await this._allocateRequestId();
+
+    const flds = [
       OutcomeMessageType.REQ_ACCT_DATA,
       VERSION,
       p.subscribe,  // TRUE = subscribe, FALSE = unsubscribe.
       p.accountCode   // srv v9 and above, the account code. This will only be used for FA clients
-    ]);
+    ];
+    debuglog('reqAccountUpdates sending:', flds);
+    await this._sendFieldsetRateLimited(flds);
+
+    return this._incomeHandler.requestIdEmitter(requestId, () => {
+      this._sendFieldsetRateLimited([
+        OutcomeMessageType.REQ_ACCT_DATA,
+        2 /* VERSION */,
+        requestId
+      ]);
+    });
   }
 
 
 
-  async reqAccountSummary(/*self, requestId:int, groupName:str, tags:str*/) {
-    throw new Error('not implemented yet');
+  async reqAccountSummary({ tags, groupName = 'All' }/*self, requestId:int, groupName:str, tags:str*/) {
     /*
     """Call this method to request and keep up to date the data that appears
     on the TWS Account Window Summary tab. The data is returned by
@@ -805,6 +816,29 @@ class Client {
 
     this._sendFieldsetRateLimited(msg)
     */
+
+    debuglog('reqAccountSummary args', { groupName, tags });
+
+    if (this._serverVersion < ServerVersion.MIN_SERVER_VER_ACCOUNT_SUMMARY) {
+      throw new Error("It does not support ACCOUNT_SUMMARY request.");
+    }
+    const VERSION = 2;
+    const requestId = await this._allocateRequestId();
+    const flds = [OutcomeMessageType.REQ_ACCOUNT_SUMMARY];
+    flds.push(VERSION);
+    flds.push(requestId);
+    flds.push(groupName);
+    flds.push(tags);
+
+    await this._sendFieldsetRateLimited(flds);
+
+    return this._incomeHandler.requestIdEmitter(requestId, () => {
+      this._sendFieldsetRateLimited([
+        OutcomeMessageType.REQ_ACCOUNT_SUMMARY,
+        VERSION,
+        requestId
+      ]);
+    });
   }
 
 
@@ -953,20 +987,29 @@ class Client {
   #########################################################################
   */
 
-  async reqPnL(/*self, requestId: int, account: str, modelCode: str*/) {
-    throw new Error('not implemented yet');
-    /*
+  async reqPnL(account, modelCode = '') {
+    debuglog('reqPnL', { account, modelCode });
+
     if (this._serverVersion < ServerVersion.MIN_SERVER_VER_PNL) {
-        throw new Error(              "  It does not support PnL request.")
-        return
+      throw new Error("It does not support PNL request.");
+    }
 
-    msg = flds.push(OutcomeMessageType.REQ_PNL) \
-        + flds.push(requestId) \
-        + flds.push(account) \
-        + flds.push(modelCode)
+    const requestId = await this._allocateRequestId();
+    const flds = [OutcomeMessageType.REQ_PNL];
+    flds.push(requestId);
+    flds.push(account);
+    flds.push(modelCode);
 
-    this._sendFieldsetRateLimited(msg)
-    */
+    debuglog('reqPnL sending:', flds);
+    await this._sendFieldsetRateLimited(flds);
+
+    return this._incomeHandler.requestIdEmitter(requestId, () => {
+      this._sendFieldsetRateLimited([
+        OutcomeMessageType.REQ_PNL,
+        2 /* VERSION */,
+        requestId
+      ]);
+    });
   }
 
 
@@ -985,21 +1028,30 @@ class Client {
     */
   }
 
-  async reqPnLSingle(/*self, requestId: int, account: str, modelCode: str, conid: int*/) {
-    throw new Error('not implemented yet');
-    /*
+  async reqPnLSingle(account, conId, modelCode = '') {
+    debuglog('reqPnLSingle', { account, conId, modelCode });
+
     if (this._serverVersion < ServerVersion.MIN_SERVER_VER_PNL) {
-        throw new Error(                         "  It does not support PnL request.")
-        return
+      throw new Error("It does not support PNL_SINGLE request.");
+    }
 
-    msg = flds.push(OutcomeMessageType.REQ_PNL_SINGLE) \
-        + flds.push(requestId) \
-        + flds.push(account) \
-        + flds.push(modelCode) \
-        + flds.push(conid)
+    const requestId = await this._allocateRequestId();
+    const flds = [OutcomeMessageType.REQ_PNL_SINGLE];
+    flds.push(requestId);
+    flds.push(account);
+    flds.push(modelCode);
+    flds.push(conId);
 
-    this._sendFieldsetRateLimited(msg)
-    */
+    debuglog('reqPnLSingle sending:', flds);
+    await this._sendFieldsetRateLimited(flds);
+
+    return this._incomeHandler.requestIdEmitter(requestId, () => {
+      this._sendFieldsetRateLimited([
+        OutcomeMessageType.REQ_PNL_SINGLE,
+        2 /* VERSION */,
+        requestId
+      ]);
+    });
   }
 
 
@@ -1126,7 +1178,7 @@ class Client {
       flds.push(contract.primaryExchange);
     } else if (this._serverVersion >= ServerVersion.MIN_SERVER_VER_LINKING) {
       if (contract.primaryExchange &&
-          (contract.exchange == "BEST" || contract.exchange == "SMART")) {
+        (contract.exchange == "BEST" || contract.exchange == "SMART")) {
         flds.push(contract.exchange + ":" + contract.primaryExchange);
       } else {
         flds.push(contract.exchange);
@@ -1819,7 +1871,7 @@ class Client {
     let scannerSubscriptionOptions = p.scannerSubscriptionOptions
 
     if (this._serverVersion < ServerVersion.MIN_SERVER_VER_SCANNER_GENERIC_OPTS &&
-          cannerSubscriptionFilterOptions != null) {
+      cannerSubscriptionFilterOptions != null) {
       throw new Error("It does not support API scanner subscription generic filter options")
     }
 

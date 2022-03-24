@@ -28,8 +28,7 @@ import {
 
 function todo(name) {
   return function(fields) {
-    console.log(name + ' message handler is not implemented yet');
-    console.log(fields);
+    throw new Error(name + ' message handler is not implemented yet');
   };
 }
 
@@ -484,10 +483,26 @@ export default {
 
 
 
-  // HandleInfo(wrap=EWrapper.accountSummary),
-  [IncomeMessageType.ACCOUNT_SUMMARY]: todo('ACCOUNT_SUMMARY'),
+  [IncomeMessageType.ACCOUNT_SUMMARY]: function(fields) {
+    fields.shift(); // API Message Type
+    fields.shift(); // API Version
+    const requestId = parseInt(fields.shift());
+
+
+    let tick = {
+      accountId: fields.shift(),
+      field: fields.shift(),
+      value: parseFloat(fields.shift()),
+      currency: fields.shift(),
+    };
+
+    this.requestIdEmit(requestId, 'tick', tick);
+  },
+
   // HandleInfo(wrap=EWrapper.accountSummaryEnd),
-  [IncomeMessageType.ACCOUNT_SUMMARY_END]: todo('ACCOUNT_SUMMARY_END'),
+  [IncomeMessageType.ACCOUNT_SUMMARY_END]: function(fields) {
+    this.requestIdResolve(fields[2], this.requestIdStorageArray(fields[2])); // TODO not tested yet
+  },
   // HandleInfo(wrap=EWrapper.verifyMessageAPI),
   [IncomeMessageType.VERIFY_MESSAGE_API]: todo('VERIFY_MESSAGE_API'),
   // HandleInfo(wrap=EWrapper.verifyCompleted),
@@ -603,9 +618,71 @@ export default {
   // HandleInfo(proc=processMarketRuleMsg),
   [IncomeMessageType.MARKET_RULE]: todo('MARKET_RULE'),
   // HandleInfo(proc=processPnLMsg),
-  [IncomeMessageType.PNL]: todo('PNL'),
+  [IncomeMessageType.PNL]: function(fields) {
+    debuglog('decoding incoming message: PNL: ', fields);
+
+    fields.shift();
+    const requestId = parseInt(fields.shift());
+    const dailyPnL = parseFloat(fields.shift());
+    let unrealizedPnL = null;
+    let realizedPnL = null;
+
+    if (this.serverVersion >= ServerVersion.MIN_SERVER_VER_UNREALIZED_PNL) {
+      unrealizedPnL = parseFloat(fields.shift());
+    }
+
+    if (this.serverVersion >= ServerVersion.MIN_SERVER_VER_REALIZED_PNL) {
+      realizedPnL = parseFloat(fields.shift());
+    }
+
+    const message = {
+      requestId,
+      dailyPnL,
+      unrealizedPnL,
+      realizedPnL,
+    };
+
+    debuglog('decoded message: PNL: ', message);
+
+    this.requestIdEmit(requestId, 'tick', message);
+  },
   // HandleInfo(proc=processPnLSingleMsg),
-  [IncomeMessageType.PNL_SINGLE]: todo('PNL_SINGLE'),
+  [IncomeMessageType.PNL_SINGLE]: function(fields) {
+    debuglog('decoding incoming message: PNL_SINGLE: ', fields);
+
+    const fractionDigits = 2;
+
+    fields.shift();
+    const requestId = parseInt(fields.shift());
+    const position = parseInt(fields.shift());
+    const dailyPnL = Number(fields.shift());
+    let unrealizedPnL = null;
+    let realizedPnL = null;
+    let marketValue = null;
+
+    if (this.serverVersion >= ServerVersion.MIN_SERVER_VER_UNREALIZED_PNL) {
+      unrealizedPnL = Number(fields.shift());
+    }
+
+    if (this.serverVersion >= ServerVersion.MIN_SERVER_VER_REALIZED_PNL) {
+      realizedPnL = Number(fields.shift());
+      if (realizedPnL === Number.MAX_VALUE) {
+        realizedPnL = 0;
+      }
+      marketValue = Number(fields.shift());
+    }
+
+    const message = {
+      requestId,
+      position,
+      dailyPnL,
+      unrealizedPnL,
+      realizedPnL,
+      marketValue,
+    };
+
+    this.requestIdEmit(requestId, 'tick', message);
+  },
 
 
 
@@ -627,7 +704,6 @@ export default {
     }
 
     let done = fields.shift();
-    console.log('historical done ' + done);
 
     this.requestIdResolve(requestId, ticks);
   },
@@ -659,7 +735,6 @@ export default {
     }
 
     let done = fields.shift();
-    console.log('historical done ' + done);
 
     this.requestIdResolve(requestId, ticks);
   },
@@ -691,11 +766,6 @@ export default {
 
       ticks.push(historicalTickLast);
     }
-
-    let done = fields.shift();
-
-    console.log('historical done ' + done);
-    console.log(requestId);
 
     this.requestIdResolve(requestId, ticks);
   },
