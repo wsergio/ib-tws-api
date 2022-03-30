@@ -39,7 +39,7 @@ function sanitizeNumbersInObject(obj) {
     if (Number.isNaN(n)) {
       continue;
     }
-    if (!Number.isSafeInteger(n) || !Number.isFinite(n) || n > Number.MAX_SAFE_INTEGER || n < -Number.MAX_SAFE_INTEGER) {
+    if (!Number.isFinite(n) || n > Number.MAX_SAFE_INTEGER || n < -Number.MAX_SAFE_INTEGER) {
       objCopy[v] = 0;
       objCopy[`${v}Raw`] = n;
     }
