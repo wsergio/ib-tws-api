@@ -32,6 +32,20 @@ function todo(name) {
   };
 }
 
+function sanitizeNumbersInObject(obj) {
+  const objCopy = { ... obj };
+  for (let v in objCopy) {
+    const n = objCopy[v];
+    if (Number.isNaN(n)) {
+      continue;
+    }
+    if (!Number.isSafeInteger(n) || Number.isFinite(n) || n > Number.MAX_SAFE_INTEGER || n < -Number.MAX_SAFE_INTEGER) {
+      objCopy[v] = 0;
+      objCopy[`${v}Raw`] = n;
+    }
+  }
+  return objCopy;
+}
 
 
 //
@@ -489,12 +503,12 @@ export default {
     const requestId = parseInt(fields.shift());
 
 
-    let tick = {
+    let tick = sanitizeNumbersInObject({
       accountId: fields.shift(),
       field: fields.shift(),
       value: parseFloat(fields.shift()),
       currency: fields.shift(),
-    };
+    });
 
     this.requestIdEmit(requestId, 'tick', tick);
   },
@@ -635,12 +649,12 @@ export default {
       realizedPnL = parseFloat(fields.shift());
     }
 
-    const message = {
+    const message = sanitizeNumbersInObject({
       requestId,
       dailyPnL,
       unrealizedPnL,
       realizedPnL,
-    };
+    });
 
     debuglog('decoded message: PNL: ', message);
 
@@ -672,14 +686,14 @@ export default {
       marketValue = Number(fields.shift());
     }
 
-    const message = {
+    const message = sanitizeNumbersInObject({
       requestId,
       position,
       dailyPnL,
       unrealizedPnL,
       realizedPnL,
       marketValue,
-    };
+    });
 
     this.requestIdEmit(requestId, 'tick', message);
   },
