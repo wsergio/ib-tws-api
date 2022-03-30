@@ -498,6 +498,7 @@ export default {
 
 
   [IncomeMessageType.ACCOUNT_SUMMARY]: function(fields) {
+    debuglog('decoding incoming message: ACCOUNT_SUMMARY: ', fields);
     fields.shift(); // API Message Type
     fields.shift(); // API Version
     const requestId = parseInt(fields.shift());
@@ -515,7 +516,7 @@ export default {
 
   // HandleInfo(wrap=EWrapper.accountSummaryEnd),
   [IncomeMessageType.ACCOUNT_SUMMARY_END]: function(fields) {
-    this.requestIdResolve(fields[2], this.requestIdStorageArray(fields[2])); // TODO not tested yet
+    debuglog('decoding incoming message: ACCOUNT_SUMMARY_END: ', fields);
   },
   // HandleInfo(wrap=EWrapper.verifyMessageAPI),
   [IncomeMessageType.VERIFY_MESSAGE_API]: todo('VERIFY_MESSAGE_API'),
