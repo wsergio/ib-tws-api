@@ -36,7 +36,7 @@ function sanitizeNumbersInObject(obj) {
   const objCopy = { ... obj };
   for (let v in objCopy) {
     const n = objCopy[v];
-    if (Number.isNaN(n)) {
+    if (Number.isNaN(Number(n))) {
       continue;
     }
     if (!Number.isFinite(n) || n > Number.MAX_SAFE_INTEGER || n < -Number.MAX_SAFE_INTEGER) {
